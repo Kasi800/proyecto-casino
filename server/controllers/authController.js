@@ -3,8 +3,6 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/userModel.js');
 
 exports.register = (req, res) => {
-  console.log("hola");
-  
   const { username, email, password } = req.body;
   const hashed = bcrypt.hashSync(password, 10);
   User.createUser({ username, email, password: hashed }, (err) => {

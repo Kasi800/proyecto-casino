@@ -7,5 +7,9 @@ module.exports = {
   findByEmail: (email, callback) => {
     const sql = 'SELECT * FROM users WHERE email = ?';
     db.query(sql, [email], callback);
+  },
+  findAll: (callback) => {
+    const sql = 'SELECT * FROM users';
+    db.query(sql, callback);
   }
 };
