@@ -17,19 +17,22 @@ export default function Login() {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <h2>Iniciar sesión</h2>
-      <input
-        type="email"
-        placeholder="Email"
-        onChange={(e) => setForm({ ...form, email: e.target.value })}
-      />
-      <input
-        type="password"
-        placeholder="Contraseña"
-        onChange={(e) => setForm({ ...form, password: e.target.value })}
-      />
-      <button>Entrar</button>
-    </form>
+    <div>
+      <h1>Iniciar sesión</h1>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="email"
+          placeholder="Email"
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+        />
+        <input
+          type="password"
+          placeholder="Contraseña"
+          onChange={(e) => setForm({ ...form, password: e.target.value })}
+        />
+        <button>Iniciar sesion</button>
+      </form>
+      <a href="/register">¿No tienes cuenta?</a>
+    </div>
   );
 }
