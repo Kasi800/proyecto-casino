@@ -1,15 +1,22 @@
-const dotenv = require('dotenv').config({path: '.env'});
-const express = require('express');
-const cors = require('cors');
+const dotenv = require("dotenv").config({ path: ".env" });
+const express = require("express");
+const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const app = express();
 
-app.use(cors());
+app.use(cookieParser());
+app.use(
+	cors({
+		origin: "http://localhost:3000",
+		credentials: true,
+	})
+);
 app.use(express.json());
 
-const authRoutes = require('./routes/authRoutes.js');
-app.use('/api/auth', authRoutes);
+const authRoutes = require("./routes/authRoutes.js");
+app.use("/api/auth", authRoutes);
 
-const dataRoutes = require('./routes/dataRoutes.js');
-app.use('/api', dataRoutes);
+const dataRoutes = require("./routes/dataRoutes.js");
+app.use("/api", dataRoutes);
 
-app.listen(3001, () => console.log('Servidor en puerto 3001'));
+app.listen(3001, () => console.log("Servidor en puerto 3001"));

@@ -1,11 +1,17 @@
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { getProtected } from "../services/authService";
 
 export default function ProtectedRoute({ children }) {
-  const token = localStorage.getItem("token");
+	const [auth, setAuth] = useState(null);
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
+	useEffect(() => {
+		getProtected()
+			.then(() => setAuth(true))
+			.catch(() => setAuth(false));
+	}, []);
 
-  return children;
+	if (auth === null) return <div>Cargando...</div>;
+	if (auth === false) return <Navigate to="/login" replace />;
+	return children;
 }

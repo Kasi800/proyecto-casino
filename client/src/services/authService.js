@@ -1,9 +1,15 @@
 import axios from "axios";
-const API_URL = "http://localhost:3001/api/auth/";
+const API_URL = axios.create({
+	baseURL: "http://localhost:3001/api/auth",
+	withCredentials: true,
+});
 
 export const register = (userData) => {
-  return axios.post(API_URL + "register", userData);
+	return API_URL.post("/register", userData);
 };
 export const login = (userData) => {
-  return axios.post(API_URL + "login", userData);
+	return API_URL.post("/login", userData);
+};
+export const getProtected = () => {
+	API_URL.get("/protected");
 };
