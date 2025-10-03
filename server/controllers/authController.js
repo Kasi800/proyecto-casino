@@ -33,8 +33,18 @@ exports.login = (req, res) => {
 			secure: false, // 🔒 solo HTTPS (si trabajas local en http://localhost desactívalo temporalmente)
 			sameSite: "Strict", // evita CSRF
 		});
-		res.json({ success: true });
+		user.password = undefined;
+		res.json({ success: true, user: user });
 	});
+};
+
+exports.logout = (req, res) => {
+	res.clearCookie("token", {
+		httpOnly: true,
+		secure: false,
+		sameSite: "Strict",
+	});
+	res.json({ message: "Sesión cerrada" });
 };
 
 exports.protected = (req, res) => {

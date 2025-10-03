@@ -10,6 +10,9 @@ export const register = (userData) => {
 export const login = (userData) => {
 	return API_URL.post("/login", userData);
 };
+export const logout = () => {
+	return API_URL.post("/logout");
+};
 export const getProtected = () => {
-	API_URL.get("/protected");
+	return API_URL.get("/protected");
 };
