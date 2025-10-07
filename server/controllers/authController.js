@@ -2,22 +2,18 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel.js");
 
-exports.register = (req, res) => {
+const register = (req, res) => {
 	const { username, email, password } = req.body;
 	const hashed = bcrypt.hashSync(password, 10);
 	User.createUser({ username, email, password: hashed }, (err) => {
+		console.log(err);
+
 		if (err) return res.status(500).send("Error al registrar");
-		res.cookie("token", token, {
-			httpOnly: true,
-			secure: false,
-			sameSite: "Strict",
-		});
-		res.status(201).send("Usuario creado");
-		this.login(req, res);
+		login(req, res);
 	});
 };
 
-exports.login = (req, res) => {
+const login = (req, res) => {
 	const { email, password } = req.body;
 	User.findByEmail(email, (err, results) => {
 		if (err || results.length === 0)
@@ -29,32 +25,36 @@ exports.login = (req, res) => {
 			expiresIn: "1h",
 		});
 		res.cookie("token", token, {
-			httpOnly: true, // 🔒 no accesible por JS
-			secure: false, // 🔒 solo HTTPS (si trabajas local en http://localhost desactívalo temporalmente)
-			sameSite: "Strict", // evita CSRF
+			httpOnly: true,
+			secure: false,
+			sameSite: "Lax",
 		});
 		user.password = undefined;
 		res.json({ success: true, user: user });
 	});
 };
 
-exports.logout = (req, res) => {
+const logout = (req, res) => {
 	res.clearCookie("token", {
 		httpOnly: true,
 		secure: false,
-		sameSite: "Strict",
+		sameSite: "Lax",
 	});
 	res.json({ message: "Sesión cerrada" });
 };
 
-exports.protected = (req, res) => {
+const protected = (req, res, next) => {
 	const token = req.cookies.token;
+
 	if (!token) return res.status(401).json({ message: "No autorizado" });
 
 	try {
 		const decoded = jwt.verify(token, process.env.JWT_SECRET);
-		res.json({ message: "Acceso autorizado", user: decoded });
+		req.user = decoded;
+		next();
 	} catch {
 		res.status(403).json({ message: "Token inválido" });
 	}
 };
+
+module.exports = { register, login, logout, protected };

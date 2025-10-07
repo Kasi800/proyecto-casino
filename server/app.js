@@ -7,7 +7,7 @@ const app = express();
 app.use(cookieParser());
 app.use(
 	cors({
-		origin: "http://localhost:3000",
+		origin: ["http://localhost:3000", "http://192.168.1.137:3000"],
 		credentials: true,
 	})
 );
@@ -16,7 +16,10 @@ app.use(express.json());
 const authRoutes = require("./routes/authRoutes.js");
 app.use("/api/auth", authRoutes);
 
+const gamesRoutes = require("./routes/gamesRoutes.js");
+app.use("/api/games", gamesRoutes);
+
 const dataRoutes = require("./routes/dataRoutes.js");
 app.use("/api", dataRoutes);
 
-app.listen(3001, () => console.log("Servidor en puerto 3001"));
+app.listen(3001, "0.0.0.0", () => console.log("Servidor en puerto 3001"));

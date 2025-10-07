@@ -7,8 +7,8 @@ export default function Home() {
 			<header>
 				<img src="logo.png" alt="Logo Casino" class="logo" />
 				<nav>
-					<a href="#">Inicio</a>
-					<a href="#">Juegos</a>
+					<a href="/">Inicio</a>
+					<a href="/blackjack">Juegos</a>
 					<a href="#">Promociones</a>
 					<a href="#">Contacto</a>
 				</nav>

@@ -9,7 +9,6 @@ export default function Login() {
 		try {
 			const res = await login(form);
 			const user = res.data.user;
-			console.log(res.data);
 
 			localStorage.setItem("user", JSON.stringify(user));
 			alert("Login correcto ✅");
@@ -24,16 +23,18 @@ export default function Login() {
 			<h1>Iniciar sesión</h1>
 			<form onSubmit={handleSubmit}>
 				<input
+					style={{ color: "black" }}
 					type="email"
 					placeholder="Email"
 					onChange={(e) => setForm({ ...form, email: e.target.value })}
 				/>
 				<input
+					style={{ color: "black" }}
 					type="password"
 					placeholder="Contraseña"
 					onChange={(e) => setForm({ ...form, password: e.target.value })}
 				/>
-				<button>Iniciar sesion</button>
+				<button style={{ color: "black" }}>Iniciar sesion</button>
 			</form>
 			<a href="/register">¿No tienes cuenta?</a>
 		</div>
