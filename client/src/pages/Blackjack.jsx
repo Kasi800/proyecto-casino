@@ -35,8 +35,8 @@ export default function Blackjack() {
 			<nav>
 				<a href="/">Inicio</a>
 				<a href="/blackjack">Juegos</a>
-				<a href="#">Promociones</a>
-				<a href="#">Contacto</a>
+				<a href="/">Promociones</a>
+				<a href="/">Contacto</a>
 			</nav>
 			<div className="hands">
 				<div>

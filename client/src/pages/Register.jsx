@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
 import { register } from "../services/authService.js";
 
 export default function Register() {
@@ -10,7 +9,7 @@ export default function Register() {
 		try {
 			await register(form);
 			alert("Registro correcto ✅");
-			<Navigate to="/login" replace />;
+			window.location.href = "/";
 		} catch (err) {
 			alert("Error en registro ❌");
 		}
