@@ -12,4 +12,15 @@ router.get("/users", (req, res) => {
 	});
 });
 
+router.get("/transactions", (req, res) => {
+	const { id } = req.body;
+	User.getTransactions(id, (err, results) => {
+		if (err) {
+			console.error("Error al obtener usuarios:", err);
+			return res.status(500).json({ error: "Error al obtener transacciones" });
+		}
+		res.json(results);
+	});
+});
+
 module.exports = router;

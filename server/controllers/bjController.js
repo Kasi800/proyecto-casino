@@ -3,8 +3,11 @@ const games = new Map();
 
 const startGame = (req, res) => {
 	const userId = req.user.id;
-	const game = new Blackjack();
-	games.set(userId, game);
+	let game = games.get(userId);
+	if (!game || game.getState().finished) {
+		game = new Blackjack();
+		games.set(userId, game);
+	}
 	res.json({ games: { blackjack: game.getState() } });
 };
 
