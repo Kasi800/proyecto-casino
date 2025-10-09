@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/userModel.js");
+const auth = require("../middlewares/auth.js");
 
-router.get("/users", (req, res) => {
+router.get("/users", auth, (req, res) => {
 	User.findAll((err, results) => {
 		if (err) {
 			console.error("Error al obtener usuarios:", err);
@@ -12,7 +13,7 @@ router.get("/users", (req, res) => {
 	});
 });
 
-router.get("/transactions", (req, res) => {
+router.get("/transactions", auth, (req, res) => {
 	const { id } = req.body;
 	User.getTransactions(id, (err, results) => {
 		if (err) {

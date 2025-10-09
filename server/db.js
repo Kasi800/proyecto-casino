@@ -1,11 +1,12 @@
 const mysql = require("mysql2");
+const config = require("./config/config.js").db;
 
 const connection = mysql.createConnection({
-	host: "localhost",
-	port: 3306,
-	user: "root",
-	password: process.env.DB_PASSWORD,
-	database: "casino_db",
+	host: config.host,
+	port: config.port,
+	user: config.user,
+	password: config.password,
+	database: config.database,
 });
 
 connection.connect((err) => {

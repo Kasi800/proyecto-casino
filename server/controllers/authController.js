@@ -1,6 +1,7 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../models/userModel.js");
+const config = require("../config/config.js");
 
 const register = (req, res) => {
 	const { username, email, password } = req.body;
@@ -21,7 +22,7 @@ const login = (req, res) => {
 		const user = results[0];
 		const valid = bcrypt.compareSync(password, user.password);
 		if (!valid) return res.status(401).send("Contraseña incorrecta");
-		const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+		const token = jwt.sign({ id: user.id }, config.jwtSecret, {
 			expiresIn: "1h",
 		});
 		res.cookie("token", token, {
@@ -43,18 +44,4 @@ const logout = (req, res) => {
 	res.json({ message: "Sesión cerrada" });
 };
 
-const protected = (req, res, next) => {
-	const token = req.cookies.token;
-
-	if (!token) return res.status(401).json({ message: "No autorizado" });
-
-	try {
-		const decoded = jwt.verify(token, process.env.JWT_SECRET);
-		req.user = decoded;
-		next();
-	} catch {
-		res.status(403).json({ message: "Token inválido" });
-	}
-};
-
-module.exports = { register, login, logout, protected };
+module.exports = { register, login, logout };
