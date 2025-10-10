@@ -1,21 +1,40 @@
 const db = require("../db.js");
-module.exports = {
-	createUser: (user, callback) => {
+const createUser = (user) => {
+	const sql = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
+	db.query(sql, [user.username, user.email, user.password], callback);
+	return new Promise((resolve, reject) => {
 		const sql =
 			"INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
-		db.query(sql, [user.username, user.email, user.password], callback);
-	},
+		db.query(sql, [user.username, user.email, user.password], (result, err) => {
+			if (err) reject(err);
+			resolve(result);
+		});
+	});
+};
 
-	findByEmail: (email, callback) => {
+const findByEmail = (email) => {
+	return new Promise((resolve, reject) => {
 		const sql = "SELECT * FROM users WHERE email = ?";
-		db.query(sql, [email], callback);
-	},
+		db.query(sql, [email], (err, result) => {
+			if (err) reject(err);
+			resolve(result[0] || null);
+		});
+	});
+};
 
-	findAll: (callback) => {
+const findAll = () => {
+	return new Promise((resolve, reject) => {
 		const sql = "SELECT * FROM users";
-		db.query(sql, callback);
-	},
-
+		db.query(sql, (err, result) => {
+			if (err) reject(err);
+			resolve(result || null);
+		});
+	});
+};
+module.exports = {
+	createUser,
+	findByEmail,
+	findAll,
 	getCredits: (userId, callback) => {
 		const sql = "SELECT credits FROM users WHERE id = ?";
 		db.query(sql, [userId], callback);
