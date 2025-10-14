@@ -1,5 +1,27 @@
 const Deck = require("./Deck");
 
+function calculateScore(hand) {
+	let total = 0;
+	let ases = 0;
+
+	for (const card of hand) {
+		let value = card.getScore();
+		if (["K", "Q", "J"].includes(value)) value = 10;
+		if (value == "A") {
+			value = 11;
+			ases++;
+		}
+		total += parseInt(value);
+	}
+
+	while (total > 21 && ases > 0) {
+		total -= 10;
+		ases--;
+	}
+
+	return total;
+}
+
 class Blackjack {
 	constructor() {
 		this.deck = new Deck();
@@ -8,13 +30,19 @@ class Blackjack {
 		this.finished = false;
 		this.winner = null;
 
-		if (this.isBlackjack(this.playerHand)) {
+		this.checkInitialBlackjack();
+	}
+
+	checkInitialBlackjack() {
+		const playerHasBlackjack = this.isBlackjack(this.playerHand);
+		const dealerHasBlackjack = this.isBlackjack(this.dealerHand);
+
+		if (playerHasBlackjack) {
 			this.finished = true;
-			if (this.isBlackjack(this.dealerHand)) {
-				this.winner = "draw";
-			} else {
-				this.winner = "player_blackjack";
-			}
+			this.winner = dealerHasBlackjack ? "draw" : "player_blackjack";
+		} else if (dealerHasBlackjack) {
+			this.finished = true;
+			this.winner = "dealer_blackjack";
 		}
 	}
 
@@ -29,10 +57,10 @@ class Blackjack {
 
 	playerStand() {
 		if (this.finished) return;
+		this.finished = true;
 		while (this.getDealerScore() < 17) {
 			this.dealerHand.push(this.deck.hit());
 		}
-		this.finished = true;
 		this.winner = this.determineWinner();
 	}
 
@@ -41,7 +69,9 @@ class Blackjack {
 	}
 
 	getDealerScore() {
-		return calculateScore(this.dealerHand);
+		let dealerVisibleHand = [this.dealerHand[0]];
+		if (this.finished) dealerVisibleHand = this.dealerHand;
+		return calculateScore(dealerVisibleHand);
 	}
 
 	determineWinner() {
@@ -69,28 +99,6 @@ class Blackjack {
 			winner: this.winner,
 		};
 	}
-}
-
-function calculateScore(hand) {
-	let total = 0;
-	let ases = 0;
-
-	for (const card of hand) {
-		score = card.getScore();
-		if (["K", "Q", "J"].includes(score)) score = 10;
-		if (score == "A") {
-			score = 11;
-			ases++;
-		}
-		total += parseInt(score);
-	}
-
-	while (total > 21 && ases > 0) {
-		total -= 10;
-		ases--;
-	}
-
-	return total;
 }
 
 module.exports = Blackjack;

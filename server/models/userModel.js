@@ -1,12 +1,12 @@
 const db = require("../db.js");
+
+//Funciones básicas de usuario
 const createUser = (user) => {
-	const sql = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
-	db.query(sql, [user.username, user.email, user.password], callback);
 	return new Promise((resolve, reject) => {
 		const sql =
 			"INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
-		db.query(sql, [user.username, user.email, user.password], (result, err) => {
-			if (err) reject(err);
+		db.query(sql, [user.username, user.email, user.password], (err, result) => {
+			if (err) return reject(err);
 			resolve(result);
 		});
 	});
@@ -16,7 +16,7 @@ const findByEmail = (email) => {
 	return new Promise((resolve, reject) => {
 		const sql = "SELECT * FROM users WHERE email = ?";
 		db.query(sql, [email], (err, result) => {
-			if (err) reject(err);
+			if (err) return reject(err);
 			resolve(result[0] || null);
 		});
 	});
@@ -26,91 +26,96 @@ const findAll = () => {
 	return new Promise((resolve, reject) => {
 		const sql = "SELECT * FROM users";
 		db.query(sql, (err, result) => {
-			if (err) reject(err);
-			resolve(result || null);
+			if (err) return reject(err);
+			resolve(result || []);
 		});
 	});
 };
+
+//Funciones de creditos y transacciones
+const getCredits = (userId) => {
+	return new Promise((resolve, reject) => {
+		const sql = "SELECT credits FROM users WHERE id = ?";
+		db.query(sql, [userId], (err, result) => {
+			if (err) reject(err);
+			if (result.length === 0)
+				return reject(new Error("Usuario no encontrado"));
+			resolve(result[0].credits || null);
+		});
+	});
+};
+
+const updateCredits = (userId, newCredits) => {
+	return new Promise((resolve, reject) => {
+		const sql = "UPDATE users SET credits = ? WHERE id = ?";
+		db.query(sql, [newCredits, userId], (err, result) => {
+			if (err) return reject(err);
+			resolve(result);
+		});
+	});
+};
+
+const createTransaction = (userId, amount, type) => {
+	return new Promise((resolve, reject) => {
+		const sql =
+			"INSERT INTO transactions (user_id, amount, type) VALUES (?, ?, ?)";
+		db.query(sql, [userId, amount, type], (err, result) => {
+			if (err) return reject(err);
+			resolve(result);
+		});
+	});
+};
+
+const addCredits = async (userId, amount) => {
+	const currentCredits = await getCredits(userId);
+	const newCredits = currentCredits + amount;
+	await updateCredits(userId, newCredits);
+	return await createTransaction(userId, amount, "deposit");
+};
+
+const placeBet = async (userId, amount, gameType) => {
+	if (amount <= 0) {
+		throw new Error("El monto de la apuesta debe ser positivo.");
+	}
+
+	const currentCredits = await getCredits(userId);
+	if (currentCredits < amount) {
+		throw new Error("Créditos insuficientes");
+	}
+
+	const newCredits = currentCredits - amount;
+	await updateCredits(userId, newCredits);
+	return await createTransaction(userId, amount, `${gameType}_bet`);
+};
+
+const resolveBet = async (userId, amount, gameType, transactionType) => {
+	const currentCredits = await getCredits(userId);
+	const newCredits = currentCredits + amount;
+	await updateCredits(userId, newCredits);
+	return await createTransaction(
+		userId,
+		amount,
+		`${gameType}_${transactionType}`
+	);
+};
+
+const getTransactions = (userId) => {
+	return new Promise((resolve, reject) => {
+		const sql =
+			"SELECT * FROM transactions WHERE user_id = ? ORDER BY timestamp DESC";
+		db.query(sql, [userId], (err, results) => {
+			if (err) return reject(err);
+			resolve(results || []);
+		});
+	});
+};
+
 module.exports = {
 	createUser,
 	findByEmail,
 	findAll,
-	getCredits: (userId, callback) => {
-		const sql = "SELECT credits FROM users WHERE id = ?";
-		db.query(sql, [userId], callback);
-	},
-
-	addCredits: (userId, amount, callback) => {
-		this.getCredits(userId, (err, results) => {
-			if (err) return callback(err);
-
-			const currentCredits = results[0].credits;
-			const newCredits = currentCredits + amount;
-			const sqlUpdate = "UPDATE users SET credits = ? WHERE id = ?";
-
-			db.query(sqlUpdate, [newCredits, userId], (err2) => {
-				if (err2) return callback(err2);
-				const sqlInsert =
-					"INSERT INTO transactions (user_id, amount, type) VALUES (?, ?, ?)";
-				db.query(sqlInsert, [userId, amount, "deposit"], callback);
-			});
-		});
-	},
-
-	betCredits: (userId, amount, callback) => {
-		this.getCredits(userId, (err, results) => {
-			if (err) return callback(err);
-
-			const currentCredits = results[0].credits;
-			if (currentCredits < amount) {
-				return callback(new Error("Créditos insuficientes"));
-			}
-
-			const newCredits = currentCredits - amount;
-			const sqlUpdate = "UPDATE users SET credits = ? WHERE id = ?";
-
-			db.query(sqlUpdate, [newCredits, userId], (err2) => {
-				if (err2) return callback(err2);
-
-				const sqlInsert =
-					"INSERT INTO transactions (user_id, amount, type) VALUES (?, ?, ?)";
-				db.query(sqlInsert, [userId, amount, "bet"], callback);
-			});
-		});
-	},
-
-	winCredits: (userId, amount, winType, callback) => {
-		const validTypes = ["player", "player_blackjack"];
-		if (!validTypes.includes(winType)) {
-			return callback(new Error("Tipo de transacción inválido"));
-		}
-
-		this.getCredits(userId, (err, results) => {
-			if (err) return callback(err);
-
-			const currentCredits = results[0].credits;
-			const bonus = winType == validTypes[0] ? 2 : 2.5;
-			const newCredits = currentCredits + amount * bonus;
-			const sqlUpdate = "UPDATE users SET credits = ? WHERE id = ?";
-
-			db.query(sqlUpdate, [newCredits, userId], (err2) => {
-				if (err2) return callback(err2);
-				const sqlInsert =
-					"INSERT INTO transactions (user_id, amount, type) VALUES (?, ?, ?)";
-				db.query(sqlInsert, [userId, amount, "win"], callback);
-			});
-		});
-	},
-
-	lossCredits: (userId, amount, callback) => {
-		const sql =
-			"INSERT INTO transactions (user_id, amount, type) VALUES (?, ?, ?)";
-		db.query(sql, [userId, amount, "loss"], callback);
-	},
-
-	getTransactions: (userId, callback) => {
-		const sql =
-			"SELECT * FROM transactions WHERE user_id = ? ORDER BY timestamp DESC";
-		db.query(sql, [userId], callback);
-	},
+	addCredits,
+	placeBet,
+	resolveBet,
+	getTransactions,
 };

@@ -13,15 +13,15 @@ router.get("/users", auth, async (req, res) => {
 	}
 });
 
-router.get("/transactions", auth, (req, res) => {
-	const { id } = req.body;
-	User.getTransactions(id, (err, results) => {
-		if (err) {
-			console.error("Error al obtener usuarios:", err);
-			return res.status(500).json({ error: "Error al obtener transacciones" });
-		}
-		res.json(results);
-	});
+router.get("/transactions", auth, async (req, res) => {
+	const userId = req.user.id;
+	try {
+		const transactions = await User.getTransactions(userId);
+		res.json(transactions);
+	} catch (err) {
+		console.error("Error al obtener transacciones:", err);
+		return res.status(500).json({ error: "Error al obtener transacciones" });
+	}
 });
 
 module.exports = router;
