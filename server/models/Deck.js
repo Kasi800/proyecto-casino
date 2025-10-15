@@ -17,10 +17,14 @@ const values = [
 ];
 
 class Deck {
-	constructor() {
+	constructor(savedCards = null) {
 		this.cards = [];
-		this.reset();
-		this.shuffle();
+		if (savedCards) {
+			this.cards = savedCards.map((c) => new Card(c.value, c.suit));
+		} else {
+			this.reset();
+			this.shuffle();
+		}
 	}
 
 	reset() {
@@ -45,8 +49,8 @@ class Deck {
 		return this.cards.length;
 	}
 
-	toString() {
-		return `${this.value}${this.suit}`;
+	getCards() {
+		return this.cards;
 	}
 }
 

@@ -23,3 +23,23 @@ CREATE TABLE transactions (
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
+
+-- Crear tabla para almacenar el estado de cada partida
+CREATE TABLE games (
+    game_id INT AUTO_INCREMENT PRIMARY KEY,
+    game_type VARCHAR(50) NOT NULL,
+    game_state TEXT NOT NULL,
+    turn_of_user_id INT NULL,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (turn_of_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Crear tabla para vincular jugadores a las partidas
+CREATE TABLE game_players (
+    game_id INT NOT NULL,
+    user_id INT NOT NULL,
+    player_state TEXT NOT NULL, -- JSON con las cartas del jugador, su apuesta, etc.
+    PRIMARY KEY (game_id, user_id),
+    FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);

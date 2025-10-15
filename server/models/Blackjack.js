@@ -23,14 +23,22 @@ function calculateScore(hand) {
 }
 
 class Blackjack {
-	constructor() {
-		this.deck = new Deck();
-		this.playerHand = [this.deck.hit(), this.deck.hit()];
-		this.dealerHand = [this.deck.hit(), this.deck.hit()];
-		this.finished = false;
-		this.winner = null;
+	constructor(savedState = null) {
+		if (savedState) {
+			this.deck = new Deck(savedState.deck);
+			this.playerHand = savedState.playerHand;
+			this.dealerHand = savedState.dealerHand;
+			this.finished = savedState.finished;
+			this.winner = savedState.winner;
+		} else {
+			this.deck = new Deck();
+			this.playerHand = [this.deck.hit(), this.deck.hit()];
+			this.dealerHand = [this.deck.hit(), this.deck.hit()];
+			this.finished = false;
+			this.winner = null;
 
-		this.checkInitialBlackjack();
+			this.checkInitialBlackjack();
+		}
 	}
 
 	checkInitialBlackjack() {
@@ -95,6 +103,16 @@ class Blackjack {
 				: [this.dealerHand[0].toString(), "??"],
 			playerScore: this.getPlayerScore(),
 			dealerScore: this.getDealerScore(),
+			finished: this.finished,
+			winner: this.winner,
+		};
+	}
+
+	getInternalState() {
+		return {
+			deck: this.deck.getCards(),
+			playerHand: this.playerHand,
+			dealerHand: this.dealerHand,
 			finished: this.finished,
 			winner: this.winner,
 		};
