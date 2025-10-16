@@ -44,10 +44,13 @@ const createGame = async (
 };
 
 const findGameById = async (gameId) => {
-	const [gameRows, playerRows] = await Promise.all([
-		db.query("SELECT * FROM games WHERE game_id = ?", [gameId]),
-		db.query("SELECT * FROM game_players WHERE game_id = ?", [gameId]),
+	const [gameRows] = await db.query("SELECT * FROM games WHERE game_id = ?", [
+		gameId,
 	]);
+	const [playerRows] = await db.query(
+		"SELECT * FROM game_players WHERE game_id = ?",
+		[gameId]
+	);
 
 	if (!gameRows[0]) {
 		return null;

@@ -67,7 +67,7 @@ export default function Blackjack() {
 						Resultado:{" "}
 						{game.winner === "player"
 							? "¡Ganaste!"
-							: game.winner === "dealer"
+							: game.winner === "dealer" || game.winner === "dealer_blackjack"
 							? "Perdiste"
 							: game.winner === "player_blackjack"
 							? "¡Blackjack!"

@@ -10,7 +10,7 @@ CREATE TABLE users (
   username VARCHAR(50) UNIQUE NOT NULL,
   email VARCHAR(100) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
-  credits INT DEFAULT 1000,
+  credits DECIMAL(10, 2) DEFAULT 1000.00,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -21,7 +21,7 @@ CREATE TABLE transactions (
     amount DECIMAL(10, 2) NOT NULL,
     type VARCHAR(50) NOT NULL,
     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- Crear tabla para almacenar el estado de cada partida
@@ -43,3 +43,6 @@ CREATE TABLE game_players (
     FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE INDEX idx_transactions_user ON transactions(user_id);
+CREATE INDEX idx_games_type ON games(game_type);

@@ -1,32 +1,75 @@
 const Blackjack = require("../models/Blackjack.js");
 const User = require("../models/userModel.js");
-const games = new Map();
+//const games = new Map();
+const Game = require("../models/gameModel.js");
 
 const startGame = async (req, res) => {
 	const userId = req.user.id;
 	const betAmount = 1;
 
 	if (!betAmount || betAmount <= 0) {
-		return res
-			.status(400)
-			.json({ message: "Se requiere un monto de apuesta válido." });
+		return res.status(400).json({
+			success: false,
+			message: "Se requiere un monto de apuesta válido.",
+		});
 	}
 
 	try {
-		let game = games.get(userId);
+		/*let game = games.get(userId);
 		if (!game || game.getState().finished) {
 			game = new Blackjack();
 			games.set(userId, game);
 			await User.placeBet(userId, betAmount, "blackjack");
 		}
+		*/
+		let loadedGame = await Game.findUserActiveGame(userId, "blackjack");
+		let game;
 
-		// Guardar el estado inicial del juego en la base de datos
-		// La clase del juego necesita una forma de exportar su estado interno
-		// await ActiveGame.save(userId, 'blackjack', game.getInternalState());
+		if (loadedGame && loadedGame.gameState.finished) {
+			await Game.removeGame(loadedGame.gameId);
+			loadedGame = null;
+		}
+
+		if (loadedGame) {
+			game = new Blackjack(loadedGame.gameState);
+		} else {
+			await User.placeBet(userId, betAmount, "blackjack");
+			game = new Blackjack();
+			const initialGameState = game.getInternalState();
+			const playerState = { playerHand: game.playerHand, bet: betAmount };
+			const gameId = await Game.createGame(
+				"blackjack",
+				initialGameState,
+				userId,
+				playerState
+			);
+			if (game.finished) {
+				let amountWon = 0;
+				let transactionType = "";
+
+				if (game.winner === "player_blackjack") {
+					amountWon = betAmount * 2.5;
+					transactionType = "win_blackjack";
+				} else if (game.winner === "draw") {
+					amountWon = betAmount;
+					transactionType = "draw";
+				}
+
+				if (amountWon > 0) {
+					await User.resolveBet(
+						userId,
+						amountWon,
+						"blackjack",
+						transactionType
+					);
+				}
+				await Game.removeGame(gameId);
+			}
+		}
 
 		res.json({ success: true, games: { blackjack: game.getState() } });
 	} catch (err) {
-		res.status(500).json({ message: err.message });
+		res.status(500).json({ success: false, message: err.message });
 	}
 };
 
@@ -35,17 +78,14 @@ const executeMove = async (userId, move) => {
 		throw new Error("Movimiento inválido.");
 	}
 
-	// Cargar la partida guardada desde la base de datos
-	// const savedGame = await ActiveGame.findByUserId(userId, 'blackjack');
-	// if (!savedGame) {
-	//     return res.status(404).json({ message: "No se encontró una partida activa." });
-	// }
-	// Recrear la instancia del juego a partir del estado guardado
-	// const game = new Blackjack(savedGame.state);
-
-	const game = games.get(userId);
+	/*const game = games.get(userId);
 	if (!game || game.finished) throw new Error("No hay partida activa.");
+	*/
 
+	const loadedGame = await Game.findUserActiveGame(userId, "blackjack");
+	if (!loadedGame) throw new Error("No hay partida activa.");
+
+	const game = new Blackjack(loadedGame.gameState);
 	if (move === "hit") {
 		game.playerHit();
 	} else if (move === "stand") {
@@ -53,18 +93,15 @@ const executeMove = async (userId, move) => {
 	}
 
 	const currentState = game.getState();
+	const betAmount = loadedGame.players[0].playerState.bet;
 
 	if (currentState.finished) {
 		let finalAmount = 0;
-		const betAmount = 1; // savedGame.bet
 		let transactionType = "";
 
 		if (currentState.winner === "player") {
 			finalAmount = betAmount * 2;
 			transactionType = "win";
-		} else if (currentState.winner === "player_blackjack") {
-			finalAmount = betAmount * 2.5;
-			transactionType = "win_blackjack";
 		} else if (currentState.winner === "draw") {
 			finalAmount = betAmount;
 			transactionType = "draw";
@@ -74,11 +111,13 @@ const executeMove = async (userId, move) => {
 			await User.resolveBet(userId, finalAmount, "blackjack", transactionType);
 		}
 
-		// Borrar la partida de la base de datos
-		// await ActiveGame.delete(userId, 'blackjack');
+		await Game.removeGame(loadedGame.gameId);
 	} else {
-		// Si el juego no ha terminado, guardar el nuevo estado
-		// await ActiveGame.update(userId, 'blackjack', game.getInternalState());
+		await Game.updateGameState(loadedGame.gameId, game.getInternalState());
+		await Game.updatePlayerState(loadedGame.gameId, userId, {
+			playerHand: game.playerHand,
+			bet: betAmount,
+		});
 	}
 
 	return currentState;

@@ -1,3 +1,4 @@
+const Card = require("./Card");
 const Deck = require("./Deck");
 
 function calculateScore(hand) {
@@ -26,8 +27,12 @@ class Blackjack {
 	constructor(savedState = null) {
 		if (savedState) {
 			this.deck = new Deck(savedState.deck);
-			this.playerHand = savedState.playerHand;
-			this.dealerHand = savedState.dealerHand;
+			this.playerHand = savedState.playerHand.map(
+				(c) => new Card(c.value, c.suit)
+			);
+			this.dealerHand = savedState.dealerHand.map(
+				(c) => new Card(c.value, c.suit)
+			);
 			this.finished = savedState.finished;
 			this.winner = savedState.winner;
 		} else {
