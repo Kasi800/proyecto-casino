@@ -1,6 +1,5 @@
-const Blackjack = require("../models/Blackjack.js");
+const Blackjack = require("../game-logic/Blackjack.js");
 const User = require("../models/userModel.js");
-//const games = new Map();
 const Game = require("../models/gameModel.js");
 
 const startGame = async (req, res) => {
@@ -15,13 +14,6 @@ const startGame = async (req, res) => {
 	}
 
 	try {
-		/*let game = games.get(userId);
-		if (!game || game.getState().finished) {
-			game = new Blackjack();
-			games.set(userId, game);
-			await User.placeBet(userId, betAmount, "blackjack");
-		}
-		*/
 		let loadedGame = await Game.findUserActiveGame(userId, "blackjack");
 		let game;
 
@@ -35,14 +27,7 @@ const startGame = async (req, res) => {
 		} else {
 			await User.placeBet(userId, betAmount, "blackjack");
 			game = new Blackjack();
-			const initialGameState = game.getInternalState();
-			const playerState = { playerHand: game.playerHand, bet: betAmount };
-			const gameId = await Game.createGame(
-				"blackjack",
-				initialGameState,
-				userId,
-				playerState
-			);
+
 			if (game.finished) {
 				let amountWon = 0;
 				let transactionType = "";
@@ -63,7 +48,15 @@ const startGame = async (req, res) => {
 						transactionType
 					);
 				}
-				await Game.removeGame(gameId);
+			} else {
+				const initialGameState = game.getInternalState();
+				const playerState = { playerHand: game.playerHand, bet: betAmount };
+				const gameId = await Game.createGame(
+					"blackjack",
+					initialGameState,
+					userId,
+					playerState
+				);
 			}
 		}
 
@@ -77,10 +70,6 @@ const executeMove = async (userId, move) => {
 	if (!["hit", "stand"].includes(move)) {
 		throw new Error("Movimiento inválido.");
 	}
-
-	/*const game = games.get(userId);
-	if (!game || game.finished) throw new Error("No hay partida activa.");
-	*/
 
 	const loadedGame = await Game.findUserActiveGame(userId, "blackjack");
 	if (!loadedGame) throw new Error("No hay partida activa.");
