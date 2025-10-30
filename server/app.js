@@ -26,3 +26,37 @@ app.use("/api", dataRoutes);
 app.listen(config.port, "0.0.0.0", () =>
 	console.log(`Servidor en puerto ${config.port}`)
 );
+
+const Poker = require("./game-logic/Poker.js");
+let poker = new Poker(1, 2);
+poker.addPlayer("user-a", 100);
+poker.addPlayer("user-b", 35);
+poker.addPlayer("user-c", 100);
+
+console.log("--- PRE-FLOP ---");
+poker.handleAction(poker.startNewHand().firstTurnUserId, "raise", 20);
+poker.handleAction(poker.getGameState().turnUserId, "call");
+poker.handleAction(poker.getGameState().turnUserId, "call");
+
+console.log("\n--- FLOP ---");
+poker.handleAction(poker.getGameState().turnUserId, "bet", 20);
+poker.handleAction(poker.getGameState().turnUserId, "call");
+poker.handleAction(poker.getGameState().turnUserId, "call");
+
+console.log("\n--- TURN ---");
+poker.handleAction(poker.getGameState().turnUserId, "check");
+let ult = poker.handleAction(poker.getGameState().turnUserId, "fold");
+
+console.log("\n--- RIVER ---");
+console.log();
+
+console.log("--- Manos Evaluadas ---");
+console.log(
+	ult.evaluatedHands.rankedHands.map((i) => ({
+		userId: i.player.userId,
+		handName: i.hand ? i.hand.handName : "N/A",
+	}))
+);
+
+console.log("\n--- 🏆 Resultados del Bote 🏆 ---");
+console.log(ult.evaluatedHands.potResults);

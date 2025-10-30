@@ -31,7 +31,6 @@ const login = async (req, res) => {
 		}
 
 		const valid = await bcrypt.compare(password, user.password);
-
 		if (!valid) {
 			return res.status(401).json({ message: "Credenciales inválidas" });
 		}
