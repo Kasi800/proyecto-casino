@@ -118,7 +118,7 @@ const updatePlayerState = async (gameId, userId, newPlayerState) => {
 };
 
 const removeGame = async (gameId) => {
-	const sql = "DELETE FROM games WHERE game_id = ?";
+	const sql = "UPDATE games SET status = 'finished' WHERE game_id = ?";
 	const [result] = await db.query(sql, [gameId]);
 	return result;
 };

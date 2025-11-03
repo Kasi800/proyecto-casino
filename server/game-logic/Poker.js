@@ -9,7 +9,7 @@ const PokerEvaluator = require("poker-evaluator");
  */
 
 /**
- * Eestructura de datos del estado completo del juego.
+ * Estructura de datos del estado completo del juego.
  * @typedef {Object} GameState
  * @property {Array<object>} pots - Los botes (principal y secundarios).
  * @property {Array<Card>} communityCards - Las cartas en la mesa.
@@ -22,6 +22,13 @@ const PokerEvaluator = require("poker-evaluator");
  */
 
 /**
+ * Estructura de datos
+ * @typedef {object} ShowdownResult
+ * @property {Array<object>} rankedHands - La clasificación de manos.
+ * @property {Array<object>} potResults - El desglose del reparto del bote.
+ */
+
+/**
  * Representa una mesa de Poker y gestiona todo el estado de la partida.
  * @class
  */
@@ -30,7 +37,7 @@ class Poker {
 	 * Crea una nueva mesa de Poker.
 	 * @param {number} smallBlindAmount - Cantidad de la ciega pequeña.
 	 * @param {number} bigBlindAmount - Cantidad de la ciega grande.
-	 * @param {Object} [savedState=null] - Un estado de juego previo para cargar.
+	 * @param {Object} [savedState=null] - Un estado de juego guardado para cargar.
 	 */
 	constructor(smallBlindAmount, bigBlindAmount, savedState = null) {
 		if (savedState) {
@@ -187,7 +194,7 @@ class Poker {
 		this.turnIndex = firstTurnIndex;
 
 		// 9. Devuelve el ID del jugador que debe actuar primero.
-		return { firstTurnUserId: activePlayers[firstTurnIndex].userId };
+		return { firstTurnUserId: this.players[firstTurnIndex].userId };
 	}
 
 	/**
@@ -363,32 +370,78 @@ class Poker {
 		}
 	}
 
+	/**
+	 * (Internal) Calcula las posiciones de las ciegas (SB, BB)
+	 * y el primer jugador en jugar (en pre-flop), basado en las reglas del poker.
+	 * @private
+	 * @param {number} activePlayersCount - El número de jugadores activos en la mano.
+	 * @returns {{sbIndex: number, bbIndex: number, firstTurnIndex: number}}
+	 * Un objeto con los índices (para `this.players`) de las posiciones clave.
+	 */
 	_assignBinds(activePlayersCount) {
 		let sbIndex, bbIndex, firstTurnIndex;
-		if (activePlayersCount == 2) {
-			// Caso 2 jugadores
+
+		// Comprueba si es "Heads-Up" (solo 2 jugadores), que tiene reglas especiales.
+		if (activePlayersCount === 2) {
+			// En Heads-Up, el Dealer es también la Ciega Pequeña (SB).
 			sbIndex = this.dealerIndex;
+			// El otro jugador es la Ciega Grande (BB).
 			bbIndex = this._nextPlayerIndex(sbIndex);
+			// El primero en jugar es el Dealer/SB.
 			firstTurnIndex = sbIndex;
 		} else {
 			// Caso normal (3+ jugadores)
+			// La SB es el jugador a la izquierda del Dealer.
 			sbIndex = this._nextPlayerIndex(this.dealerIndex);
+			// La BB es el jugador a la izquierda de la SB.
 			bbIndex = this._nextPlayerIndex(sbIndex);
+			// El primero en jugar es el jugador a la izquierda de la BB.
 			firstTurnIndex = this._nextPlayerIndex(bbIndex);
 		}
+
 		return { sbIndex, bbIndex, firstTurnIndex };
 	}
 
+	/**
+	 * (Internal) Cobra las apuestas ciegas (SB y BB) y las añade al bote.
+	 * @private
+	 * @param {number} sbIndex - El índice del jugador en la Ciega Pequeña.
+	 * @param {number} bbIndex - El índice del jugador en la Ciega Grande.
+	 * @returns {void}
+	 */
 	_postBlinds(sbIndex, bbIndex) {
 		const sbPlayer = this.players[sbIndex];
 		const bbPlayer = this.players[bbIndex];
+
+		// 1. El jugador paga y DEVUELVE la cantidad que realmente apostó.
 		sbPlayer.postBlind(this.smallBlindAmount);
 		bbPlayer.postBlind(this.bigBlindAmount);
+
+		// 2. AÑADE esas cantidades al bote.
+		if (!this.pots[0]) {
+			this.pots[0] = {
+				amount: 0,
+				eligiblePlayers: this._getActivePlayers().map((p) => p.userId),
+			};
+		}
 	}
 
+	/**
+	 * (Internal) Reparte las dos cartas privadas a cada jugador activo.
+	 * Empieza a repartir desde la Ciega Pequeña (sbIndex) y da una
+	 * carta a cada jugador, luego repite el proceso una segunda vez.
+	 * @private
+	 * @param {number} activePlayersCount - El número de jugadores que reciben cartas.
+	 * @param {number} sbIndex - El índice del jugador que es Ciega Pequeña (el primero).
+	 * @returns {void}
+	 */
 	_dealPrivateCards(activePlayersCount, sbIndex) {
+		// Fija el punto de inicio del reparto (el jugador en la Ciega Pequeña).
 		let dealIndex = sbIndex;
+
+		// Bucle para las 2 cartas (i = 0 es la primera carta, i = 1 es la segunda).
 		for (let i = 0; i < 2; i++) {
+			// Reparte una carta a cada jugador activo.
 			for (let j = 0; j < activePlayersCount; j++) {
 				this.players[dealIndex].addToHand(this.deck.hit());
 				dealIndex = this._nextPlayerIndex(dealIndex);
@@ -396,43 +449,80 @@ class Poker {
 		}
 	}
 
+	/**
+	 * (Internal) Reparte un número específico de cartas comunitarias.
+	 * (Se usa para el Flop, Turn y River).
+	 * @private
+	 * @param {number} num - El número de cartas a repartir (ej. 3 para el Flop, 1 para Turn/River).
+	 * @returns {void}
+	 */
 	_dealCommunityCards(num) {
+		// Añade cartas a la mesa 'num' veces.
 		for (let i = 0; i < num; i++) {
 			this.communityCards.push(this.deck.hit());
 		}
 	}
 
+	/**
+	 * (Internal) Revisa si la ronda de apuestas actual (ej. flop) ha terminado.
+	 * @private
+	 * @returns {boolean} - 'true' si la ronda terminó, 'false' si debe continuar.
+	 */
 	_isBettingRoundOver() {
+		// Obtengo todos los jugadores que no se han retirado ('folded').
 		const playersStillPot = this.players.filter(
-			(p) => p.status == "active" || p.status == "all-in"
+			(p) => p.status === "active" || p.status === "all-in"
 		);
 
+		// Si solo queda 1 jugador (o 0), la ronda (y la mano) se acaba automáticamente.
 		if (playersStillPot.length <= 1) return true;
 
+		// 1. ¿Han actuado todos?
 		const allPlayersHaveActed = playersStillPot.every(
-			(p) => p.hasActed == true || p.status == "all-in"
+			(p) => p.hasActed === true || p.status === "all-in"
 		);
 
+		// 2. ¿Están las apuestas igualadas?
 		const allBetsMatch = playersStillPot.every(
-			(p) => p.currentBet == this.currentBet || p.status == "all-in"
+			(p) => p.currentBet === this.currentBet || p.status === "all-in"
 		);
 		return allPlayersHaveActed && allBetsMatch;
 	}
 
+	/**
+	 * (Internal) Avanza el juego a la siguiente fase (flop, turn, river, showdown).
+	 * Se encarga de asentar los botes, resetear las apuestas, repartir cartas
+	 * comunitarias y, finalmente, determinar un ganador o empezar una nueva mano.
+	 * @private
+	 * @returns {Array<object>|null} - Los resultados del showdown (si ocurre),
+	 * o 'null' si la mano continúa.
+	 */
 	_moveToNextStage() {
+		// 1. ASENTAR EL BOTE: Mueve las apuestas de los jugadores al bote principal.
 		this._settlePot();
+		// Resetea la apuesta a igualar para la nueva ronda (ej. en el flop, la apuesta es 0).
 		this.currentBet = 0;
+
+		// 2. RESETEAR JUGADORES: Resetea 'hasActed' para la nueva ronda de apuestas.
 		this.players.forEach((player) => {
-			if (player.status == "active") {
+			if (player.status === "active") {
 				player.hasActed = false;
 			}
 		});
 
-		this.turnIndex = this._nextPlayerIndex(this.dealerIndex);
+		// 3. ASIGNAR TURNO (POST-FLOP): El primer jugador en jugar.
+		if (activePlayersInPot.length === 2) {
+			// En Heads-Up, el Dealer (SB) juega primero post-flop.
+			this.turnIndex = this.dealerIndex;
+		} else {
+			// 3+ jugadores, el SB (izquierda del dealer) juega primero.
+			this.turnIndex = this._nextPlayerIndex(this.dealerIndex);
+		}
 
+		// Almacenará los resultados del showdown si la mano termina aquí.
 		let evaluatedHands = null;
 
-		// 'pre-flop', 'flop', 'turn', 'river', 'showdown'
+		// 4. AVANZAR EL ESTADO DEL JUEGO 'pre-flop', 'flop', 'turn', 'river', 'showdown'
 		switch (this.state) {
 			case "pre-flop":
 				this.state = "flop";
@@ -455,26 +545,42 @@ class Poker {
 				break;
 		}
 
-		if (this.state == "showdown" || this.state == "waiting_for_players") {
+		// 5. LÓGICA DE AUTO-AVANCE (SKIP)
+		// Si la mano ha terminado (showdown) o está esperando, quita el turno.
+		if (this.state === "showdown" || this.state === "waiting_for_players") {
 			this.turnIndex = -1;
 		} else {
+			// Si la mano no ha terminado, comprueba si se debe saltar la ronda de apuestas.
 			const activePlayersNow = this.players.filter(
 				(p) => p.status === "active"
 			);
 
-			if (this.turnIndex === -1 || activePlayersNow.length == 1) {
-				if (activePlayersNow.length == 1) activePlayersNow[0].hasActed = true;
+			// Si no hay jugadores activos (todos all-in) o solo 1 puede apostar.
+			if (this.turnIndex === -1 || activePlayersNow.length === 1) {
+				// Marca al último jugador activo como "ha actuado" (para el 'auto-check').
+				if (activePlayersNow.length === 1) activePlayersNow[0].hasActed = true;
 
-				if (this.state != "showdown") {
+				// Si no hemos llegado al showdown, avanza automáticamente a la siguiente fase.
+				// (Llamada recursiva para "correr" las cartas restantes).
+				if (this.state !== "showdown") {
 					evaluatedHands = this._moveToNextStage();
 				}
 			}
 		}
 
+		// Devuelve los resultados del showdown (o null si la mano sigue).
 		return evaluatedHands;
 	}
 
 	//Lógica de botes y ganador (Privados)
+
+	/**
+	 * (Internal) Asienta el bote al final de una ronda de apuestas.
+	 * Mueve el dinero de 'player.currentBet' de cada jugador a los
+	 * botes ('this.pots'), creando botes secundarios (side pots) si es necesario.
+	 * @private
+	 * @returns {void}
+	 */
 	_settlePot() {
 		// 1. Encuentra a todos los que apostaron algo
 		const playersInRound = this.players.filter((p) => p.currentBet > 0);
@@ -502,7 +608,6 @@ class Poker {
 
 			// 5. ¿Este bote ya existe? (Si es un "side pot" de una ronda anterior)
 			// Buscamos un bote existente con EXACTAMENTE los mismos jugadores elegibles
-
 			const existingPot = this.pots.find(
 				(pot) =>
 					pot.eligiblePlayers.length == eligiblePlayers.length &&
@@ -528,39 +633,67 @@ class Poker {
 		this.players.forEach((p) => (p.currentBet = 0));
 	}
 
+	/**
+	 * (Internal) Determina el ganador(es) al llegar al 'showdown'.
+	 * Evalúa las manos de los jugadores restantes y llama a la lógica
+	 * para repartir los botes.
+	 * @private
+	 * @returns {ShowdownResult}
+	 * Un objeto que contiene:
+	 * - `rankedHands`: La lista de jugadores y su mejor mano evaluada.
+	 * - `potResults`: El resultado de quién ganó qué bote (devuelto por `_awardPots`).
+	 */
 	_determinateWinner() {
+		// 1. Asienta el bote final (mueve las apuestas de la ronda 'river' a 'this.pots').
 		this._settlePot();
+
+		// 2. Obtiene a todos los jugadores que no se han retirado ('folded').
 		const playersStillPot = this.players.filter(
-			(p) => p.status == "active" || p.status == "all-in"
+			(p) => p.status === "active" || p.status === "all-in"
 		);
 
 		let rankedHands = [];
 
+		// 3. Evalúa la mejor mano de 5 cartas para CADA jugador (de sus 7 disponibles).
 		for (const player of playersStillPot) {
+			// Combina las 2 cartas del jugador + 5 de la mesa.
 			const sevenCards = [...player.hand, ...this.communityCards];
 
+			// Convierte las cartas al formato que requiere la librería 'PokerEvaluator'.
 			const cardsForEvaluator = sevenCards.map((card) =>
-				card.toEvaluatorString()
+				card.toPokerEvaluatorString()
 			);
 
+			// La librería encuentra la mejor mano (ej. "Full House").
 			const bestHand = PokerEvaluator.evalHand(cardsForEvaluator);
+
+			// Almacena el resultado junto con el objeto 'player' para el reparto.
 			rankedHands.push({
 				player: player,
 				hand: bestHand,
 			});
 		}
 
+		// 4. Llama a la función que compara las 'rankedHands' y reparte el dinero de 'this.pots'.
 		let potResults = this._awardPots(rankedHands);
+
+		// 5. Devuelve la clasificación y el desglose del reparto de premios.
 		return { rankedHands, potResults };
 	}
 
+	/**
+	 * (Internal) Reparte el dinero de `this.pots` a los ganadores.
+	 * @private
+	 * @param {Array<{player: PokerPlayer, hand: object}>} rankedHands - Una lista
+	 * de jugadores que no se han retirado y su mejor mano evaluada.
+	 * @returns {Array<object>} Un array de objetos que describe quién ganó qué bote.
+	 */
 	_awardPots(rankedHands) {
 		let potResults = [];
 		// Si solo hay un ganador (todos se retiraron), dale todo
-		if (rankedHands.length == 1) {
+		if (rankedHands.length === 1) {
 			const totalPot = this.pots.reduce((sum, pot) => sum + pot.amount, 0);
 			rankedHands[0].player.chips += totalPot;
-			this.pots = [];
 
 			potResults.push({
 				potName: "Main Pot",
@@ -568,55 +701,82 @@ class Poker {
 				winners: [rankedHands[0].player.userId],
 				handName: "Todos los demás se retiraron",
 			});
-			return potResults;
-		}
+		} else {
+			// Itera sobre cada bote (main, side 1, side 2...)
+			let potIndex = 1;
+			for (const pot of this.pots) {
+				// 1. Encuentra las manos elegibles SOLO para este bote
+				const eligibleHands = rankedHands.filter((rh) =>
+					pot.eligiblePlayers.includes(rh.player.userId)
+				);
 
-		// Itera sobre cada bote (main, side 1, side 2...)
-		let potIndex = 1;
-		for (const pot of this.pots) {
-			// 1. Encuentra las manos elegibles SOLO para este bote
-			const eligibleHands = rankedHands.filter((rh) =>
-				pot.eligiblePlayers.includes(rh.player.userId)
-			);
+				if (eligibleHands.length === 0) {
+					potIndex++;
+					continue;
+				}
 
-			if (eligibleHands.length == 0) {
+				// 2. Encuentra al ganador(es) SOLO de ese grupo
+				const maxValue = eligibleHands.reduce((max, rh) => {
+					return rh.hand.value > max.hand.value ? rh : max;
+				});
+				const winners = eligibleHands.filter(
+					(i) => i.hand.value === maxValue.hand.value
+				);
+
+				// 3. Reparte ese bote
+				const amountPerWinner = Math.floor(pot.amount / winners.length);
+				let remainder = pot.amount % winners.length; // Fichas sobrantes
+
+				for (const winner of winners) {
+					let amountToAward = amountPerWinner;
+					// Da la ficha sobrante al primer ganador de la lista
+					if (remainder > 0) {
+						amountToAward += 1;
+						remainder -= 1;
+					}
+					winner.player.chips += amountToAward;
+				}
+
+				potResults.push({
+					potName: potIndex === 1 ? "Main Pot" : `Side Pot ${potIndex - 1}`,
+					amount: pot.amount,
+					winners: winners.map((w) => w.player.userId),
+					handName: winners[0].hand.handName,
+				});
 				potIndex++;
-				continue;
 			}
-
-			// 2. Encuentra al ganador(es) SOLO de ese grupo
-			const maxValue = eligibleHands.reduce((max, rh) => {
-				return rh.hand.value > max.hand.value ? rh : max;
-			});
-			const winners = eligibleHands.filter(
-				(i) => i.hand.value == maxValue.hand.value
-			);
-
-			// 3. Reparte ese bote
-			const amountPerWinner = pot.amount / winners.length;
-			for (const winner of winners) {
-				winner.player.chips += amountPerWinner;
-			}
-
-			potResults.push({
-				potName: this.pots.length > 1 ? `Side Pot ${potIndex}` : "Main Pot",
-				amount: pot.amount,
-				winners: winners.map((w) => w.player.userId),
-				handName: winners[0].hand.handName,
-			});
-			potIndex++;
 		}
+
 		this.pots = []; // Vacía los botes
 		return potResults;
 	}
 
 	//Helpers de handleAction (Privados)
+
+	/**
+	 * (Internal) Valida si un jugador puede legalmente 'pasar' (check).
+	 * Da un error si el jugador tiene una apuesta pendiente que debe igualar.
+	 * @private
+	 * @param {PokerPlayer} player - El jugador que intenta pasar.
+	 * @returns {void}
+	 * @throws {Error} Si el jugador no puede pasar.
+	 */
 	_validateCheck(player) {
 		if (player.currentBet < this.currentBet) {
 			throw new Error("No puedes pasar, hay una apuesta pendiente.");
 		}
 	}
 
+	/**
+	 * (Internal) Ejecuta la acción de 'igualar' (Call) para un jugador.
+	 * Calcula la cantidad necesaria para igualar y le pide al jugador
+	 * que pague esa cantidad.
+	 * @private
+	 * @param {PokerPlayer} player - El jugador que realiza la acción.
+	 * @returns {number} La cantidad de fichas que el jugador realmente ha
+	 * aportado (manejando casos de 'all-in').
+	 * @throws {Error} Si el jugador intenta igualar cuando debería pasar.
+	 */
 	_executeCall(player) {
 		const amountToCall = this.currentBet - player.currentBet;
 		if (amountToCall <= 0) {
@@ -625,6 +785,16 @@ class Poker {
 		return player.makeBet(amountToCall);
 	}
 
+	/**
+	 * (Internal) Ejecuta la acción de 'apostar' (Bet) para un jugador.
+	 * Esta acción solo es válida si nadie más ha apostado en esta ronda.
+	 * @private
+	 * @param {PokerPlayer} player - El jugador que realiza la acción.
+	 * @param {number} amount - La cantidad que el jugador desea apostar.
+	 * @returns {number} La cantidad real que el jugador apostó (manejando all-in).
+	 * @throws {Error} Si ya hay una apuesta en la ronda (se debe usar 'raise' o 'call').
+	 * @throws {Error} Si la apuesta es menor que la Ciega Grande.
+	 */
 	_executeBet(player, amount) {
 		if (this.currentBet > 0) {
 			throw new Error(
@@ -640,16 +810,33 @@ class Poker {
 		return actualBet;
 	}
 
+	/**
+	 * (Internal) Ejecuta la acción de 'subir' (Raise) para un jugador.
+	 * Valida que la subida sea legal y actualiza la apuesta de la mesa.
+	 * @private
+	 * @param {PokerPlayer} player - El jugador que realiza la acción.
+	 * @param {number} amount - La cantidad TOTAL a la que se sube (ej. "subir A 500").
+	 * @returns {number} La cantidad real de fichas que el jugador añadió.
+	 * @throws {Error} Si se intenta subir cuando se debe apostar (bet).
+	 * @throws {Error} Si el tamaño de la subida es menor al mínimo legal.
+	 */
 	_executeRaise(player, amount) {
-		if (this.currentBet == 0) {
+		if (this.currentBet === 0) {
 			throw new Error("No puedes subir, debes 'apostar' (bet).");
-		}
-		const raiseAmount = amount - this.currentBet;
-		if (raiseAmount < this.bigBlindAmount) {
-			throw new Error("La subida es demasiado pequeña.");
 		}
 
 		const chipsToCommit = amount - player.currentBet;
+		const isAllIn = chipsToCommit >= player.chips;
+
+		const raiseAmount = amount - this.currentBet;
+		if (!isAllIn && raiseAmount < this.bigBlindAmount) {
+			throw new Error("La subida es demasiado pequeña.");
+		}
+
+		if (amount < this.currentBet) {
+			throw new Error("La subida debe ser mayor que la apuesta actual.");
+		}
+
 		const actualRaise = player.makeBet(chipsToCommit);
 		this.currentBet = player.currentBet;
 		return actualRaise;
