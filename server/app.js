@@ -30,25 +30,24 @@ app.listen(config.port, "0.0.0.0", () =>
 const Poker = require("./game-logic/Poker.js");
 let poker = new Poker(1, 2);
 poker.addPlayer("user-a", 100);
-poker.addPlayer("user-b", 35);
-poker.addPlayer("user-c", 100);
+poker.addPlayer("user-b", 100);
 
 console.log("--- PRE-FLOP ---");
 poker.handleAction(poker.startNewHand().firstTurnUserId, "raise", 20);
 poker.handleAction(poker.getGameState().turnUserId, "call");
-poker.handleAction(poker.getGameState().turnUserId, "call");
 
 console.log("\n--- FLOP ---");
 poker.handleAction(poker.getGameState().turnUserId, "bet", 20);
-poker.handleAction(poker.getGameState().turnUserId, "call");
+poker.handleAction(poker.getGameState().turnUserId, "raise", 30);
 poker.handleAction(poker.getGameState().turnUserId, "call");
 
 console.log("\n--- TURN ---");
 poker.handleAction(poker.getGameState().turnUserId, "check");
-let ult = poker.handleAction(poker.getGameState().turnUserId, "fold");
+poker.handleAction(poker.getGameState().turnUserId, "check");
 
 console.log("\n--- RIVER ---");
-console.log();
+poker.handleAction(poker.getGameState().turnUserId, "check");
+let ult = poker.handleAction(poker.getGameState().turnUserId, "check");
 
 console.log("--- Manos Evaluadas ---");
 console.log(
@@ -60,3 +59,8 @@ console.log(
 
 console.log("\n--- 🏆 Resultados del Bote 🏆 ---");
 console.log(ult.evaluatedHands.potResults);
+
+console.log("--- Jugadores Evaluadas ---");
+console.log(
+	ult.game.players.map((i) => ({ userId: i.userId, chips: i.chips }))
+);

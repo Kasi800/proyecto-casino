@@ -3,13 +3,46 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/userModel.js");
 const config = require("../config/config.js");
 
+/**
+ * Función helper para crear y enviar el token como cookie y JSON
+ */
+const sendTokenResponse = (user, res) => {
+	// 1. Crear el Token
+	const token = jwt.sign({ id: user.id }, config.jwtSecret, {
+		expiresIn: "1h",
+	});
+
+	// 2. Configurar la Cookie
+	res.cookie("token", token, {
+		httpOnly: true,
+		secure: false,
+		sameSite: "strict",
+		maxAge: 3600 * 1000,
+	});
+
+	// 3. Enviar respuesta JSON
+	res.status(200).json({
+		id: user.id,
+		username: user.username,
+		email: user.email,
+		credits: user.credits,
+	});
+};
+
 const register = async (req, res) => {
 	const { username, email, password } = req.body;
 
 	try {
-		const hashed = bcrypt.hashSync(password, 10);
-		await User.createUser({ username, email, password: hashed });
-		login(req, res);
+		const hashed = await bcrypt.hash(password, 10);
+		const [result] = await User.createUser({
+			username,
+			email,
+			password: hashed,
+		});
+
+		const newUser = await User.findByEmail(email);
+
+		sendTokenResponse(newUser, res);
 	} catch (err) {
 		console.log(err);
 		if (err.code === "ER_DUP_ENTRY") {
@@ -17,7 +50,7 @@ const register = async (req, res) => {
 				.status(409)
 				.json({ message: "El correo electrónico ya está en uso." });
 		}
-		if (err) return res.status(500).send("Error al registrar");
+		res.status(500).send("Error al registrar", err);
 	}
 };
 
@@ -35,21 +68,11 @@ const login = async (req, res) => {
 			return res.status(401).json({ message: "Credenciales inválidas" });
 		}
 
-		const token = jwt.sign({ id: user.id }, config.jwtSecret, {
-			expiresIn: "1h",
-		});
-
-		res.cookie("token", token, {
-			httpOnly: true,
-			secure: false,
-			sameSite: "Lax",
-		});
-		user.password = undefined;
-
-		res.json({ success: true, user });
+		sendTokenResponse(user, res);
 	} catch (err) {
-		console.error(err);
-		res.status(500).json({ message: "Error en el servidor durante el login" });
+		res
+			.status(500)
+			.json({ message: "Error en el servidor durante el login", err });
 	}
 };
 
@@ -58,7 +81,7 @@ const logout = (req, res) => {
 		httpOnly: true,
 		expires: new Date(0),
 	});
-	res.status(200).json({ message: "Sesión cerrada correctamente" });
+	res.status(200).json({ message: "Sesión cerrada correctamente", err });
 };
 
 module.exports = { register, login, logout };
