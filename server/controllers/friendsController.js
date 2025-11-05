@@ -55,7 +55,6 @@ const sendRequest = async (req, res) => {
 
 /**
  * Acepta una solicitud de amistad.
- * Espera { requesterId } en el body (el ID de quien ENVIÓ la solicitud).
  */
 const acceptRequest = async (req, res) => {
 	const receiverId = req.user.id;
@@ -83,7 +82,6 @@ const acceptRequest = async (req, res) => {
 
 /**
  * Rechaza una solicitud de amistad (o cancela una enviada).
- * Espera { otherUserId } en el body.
  */
 const rejectOrCancelRequest = async (req, res) => {
 	const currentUserId = req.user.id;
@@ -111,7 +109,6 @@ const rejectOrCancelRequest = async (req, res) => {
 
 /**
  * Elimina a un amigo (una relación 'accepted').
- * Espera { friendId } en el body.
  */
 const removeFriend = async (req, res) => {
 	const userId = req.user.id;
@@ -136,7 +133,6 @@ const removeFriend = async (req, res) => {
 
 /**
  * Obtiene el estado de amistad con un usuario específico.
- * Espera el ID del otro usuario en los parámetros de la ruta (ej: /status/:otherUserId)
  */
 const getStatusWithUser = async (req, res) => {
 	const userId = req.user.id;
