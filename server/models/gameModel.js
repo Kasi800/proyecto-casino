@@ -57,10 +57,10 @@ const findGameById = async (gameId) => {
 	}
 
 	const gameData = gameRows[0];
-	const gameState = JSON.parse(gameData.game_state);
+	const gameState = gameData.game_state;
 	const players = playerRows.map((p) => ({
 		userId: p.user_id,
-		playerState: JSON.parse(p.player_state),
+		playerState: p.player_state,
 	}));
 
 	return {
@@ -86,7 +86,7 @@ const findUserActiveGame = async (userId, gameType) => {
 	const sql = `
         SELECT g.* FROM games g
         JOIN game_players gp ON g.game_id = gp.game_id
-        WHERE gp.user_id = ? AND g.game_type = ?
+        WHERE gp.user_id = ? AND g.game_type = ? AND g.status = 'active'
     `;
 	const [rows] = await db.query(sql, [userId, gameType]);
 

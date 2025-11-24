@@ -26,7 +26,7 @@ app.use("/api", dataRoutes);
 app.listen(config.port, "0.0.0.0", () =>
 	console.log(`Servidor en puerto ${config.port}`)
 );
-
+/**
 const Poker = require("./game-logic/Poker.js");
 let poker = new Poker(1, 2);
 poker.addPlayer("user-a", 100);
@@ -64,3 +64,4 @@ console.log("--- Jugadores Evaluadas ---");
 console.log(
 	ult.game.players.map((i) => ({ userId: i.userId, chips: i.chips }))
 );
+*/

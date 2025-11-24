@@ -27,15 +27,16 @@ const startGame = async (req, res) => {
 		} else {
 			await User.placeBet(userId, betAmount, "blackjack");
 			game = new Blackjack();
+			let gameState = game.getInternalState();
 
-			if (game.finished) {
+			if (gameState.finished) {
 				let amountWon = 0;
 				let transactionType = "";
 
-				if (game.winner === "player_blackjack") {
+				if (gameState.winner === "player_blackjack") {
 					amountWon = betAmount * 2.5;
 					transactionType = "win_blackjack";
-				} else if (game.winner === "draw") {
+				} else if (gameState.winner === "draw") {
 					amountWon = betAmount;
 					transactionType = "draw";
 				}
@@ -49,11 +50,10 @@ const startGame = async (req, res) => {
 					);
 				}
 			} else {
-				const initialGameState = game.getInternalState();
-				const playerState = { playerHand: game.playerHand, bet: betAmount };
+				const playerState = { playerHand: gameState.playerHand, bet: betAmount };
 				const gameId = await Game.createGame(
 					"blackjack",
-					initialGameState,
+					gameState,
 					userId,
 					playerState
 				);
@@ -82,6 +82,7 @@ const executeMove = async (userId, move) => {
 	}
 
 	const currentState = game.getState();
+	const internalState = game.getInternalState();
 	const betAmount = loadedGame.players[0].playerState.bet;
 
 	if (currentState.finished) {
@@ -97,17 +98,15 @@ const executeMove = async (userId, move) => {
 		}
 
 		if (finalAmount > 0) {
-			await User.resolveBet(userId, finalAmount, "blackjack", transactionType);
+			await User.addCredits(userId, finalAmount, "blackjack", transactionType);
 		}
-
 		await Game.removeGame(loadedGame.gameId);
-	} else {
-		await Game.updateGameState(loadedGame.gameId, game.getInternalState());
-		await Game.updatePlayerState(loadedGame.gameId, userId, {
-			playerHand: game.playerHand,
-			bet: betAmount,
-		});
 	}
+	await Game.updateGameState(loadedGame.gameId, internalState);
+	await Game.updatePlayerState(loadedGame.gameId, userId, {
+		playerHand: internalState.playerHand,
+		bet: betAmount,
+	});
 
 	return currentState;
 };
